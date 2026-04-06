@@ -5,50 +5,63 @@ from tools.data_tools import set_active_df
 import pandas as pd
 
 agent = None
-chat_history = []
 
 
 def init_agent(hf_token: str):
     global agent
     if not hf_token.strip():
-        return "Please enter a valid HF token."
+        return "Please enter a valid HF token.", gr.update(interactive=False)
     try:
         agent = build_agent(hf_token=hf_token)
-        return "Agent ready. Upload a CSV and start asking questions."
+        return "Agent ready. Ask a question below.", gr.update(interactive=True)
     except Exception as e:
-        return f"Failed to initialise agent: {e}"
+        return f"Failed to initialise: {e}", gr.update(interactive=False)
 
 
 def upload_csv(file):
     if file is None:
-        return "No file uploaded.", None
+        return "No file uploaded."
     df = pd.read_csv(file.name)
     set_active_df(df, name=os.path.basename(file.name))
-    preview = df.head(10).to_html(index=False)
-    return (
-        f"Loaded {df.shape[0]:,} rows x {df.shape[1]} columns from {os.path.basename(file.name)}",
-        preview,
-    )
+    return f"Loaded {df.shape[0]:,} rows x {df.shape[1]} columns from {os.path.basename(file.name)}"
 
 
 def chat(user_message: str, history: list):
-    global agent, chat_history
+    global agent
+    if not user_message.strip():
+        return history, ""
     if agent is None:
-        history.append((user_message, "Agent not initialised. Enter your HF token first."))
+        history.append({"role": "user", "content": user_message})
+        history.append({"role": "assistant", "content": "Agent not initialised. Enter your HF token first."})
         return history, ""
 
+    history.append({"role": "user", "content": user_message})
     try:
         response = agent.run(user_message)
-        # Check if a plot was generated and append image markdown
-        if isinstance(response, str) and response.startswith("Chart saved to:"):
-            path = response.replace("Chart saved to:", "").strip()
-            history.append((user_message, f"Chart generated.\n\n![chart]({path})"))
+        # If a chart was generated, surface the path
+        if isinstance(response, str) and "plots/" in response and response.strip().endswith(".png"):
+            path = response.strip().split("Chart saved to:")[-1].strip()
+            history.append({"role": "assistant", "content": f"Chart generated and saved to `{path}`."})
         else:
-            history.append((user_message, str(response)))
+            history.append({"role": "assistant", "content": str(response)})
     except Exception as e:
-        history.append((user_message, f"Error: {e}"))
+        history.append({"role": "assistant", "content": f"Error: {e}"})
 
     return history, ""
+
+
+EXAMPLE_QUESTIONS = [
+    "What datasets are available?",
+    "Load the Spotify dataset and describe it",
+    "What are the top 10 genres by average popularity?",
+    "Create a scatter chart of energy vs danceability",
+    "Fetch Apple stock data for the last year",
+    "Compare AAPL, MSFT, GOOGL and NVDA over 6 months",
+    "Show me Tesla's company info and key financials",
+    "Load the data jobs dataset and show average salary by job title",
+    "Create a bar chart of total sales by region",
+    "Generate a full report with findings and recommendations",
+]
 
 
 def build_ui():
@@ -56,64 +69,79 @@ def build_ui():
         title="Data Analysis Agent",
         theme=gr.themes.Soft(),
         css="""
-        .header { text-align: center; padding: 20px 0; }
-        .header h1 { font-size: 2rem; font-weight: 700; }
-        .header p { color: #555; font-size: 1rem; }
+        .header { text-align: center; padding: 24px 0 8px; }
+        .header h1 { font-size: 2rem; font-weight: 700; margin: 0; }
+        .header p { color: #666; margin: 6px 0 0; font-size: 1rem; }
+        .badge { display: inline-block; background: #f0f4ff; color: #3b4cca;
+                 font-size: 0.78rem; padding: 2px 10px; border-radius: 12px;
+                 margin: 4px 2px; font-weight: 500; }
         """,
     ) as demo:
+
         gr.HTML("""
         <div class="header">
             <h1>Data Analysis Agent</h1>
-            <p>Upload a CSV dataset and ask questions in plain English. Powered by smolagents + Qwen2.5-72B.</p>
+            <p>Ask questions about real-world data in plain English.</p>
+            <div style="margin-top:10px;">
+                <span class="badge">Yahoo Finance</span>
+                <span class="badge">HF Datasets Hub</span>
+                <span class="badge">smolagents</span>
+                <span class="badge">Qwen2.5-72B</span>
+            </div>
         </div>
         """)
 
         with gr.Row():
-            with gr.Column(scale=1):
+            # ── Left panel ──────────────────────────────────────────────
+            with gr.Column(scale=1, min_width=280):
                 gr.Markdown("### Setup")
                 hf_token_input = gr.Textbox(
                     label="Hugging Face Token",
                     placeholder="hf_...",
                     type="password",
+                    info="Free token from huggingface.co/settings/tokens",
                 )
                 init_btn = gr.Button("Initialise Agent", variant="primary")
-                init_status = gr.Textbox(label="Status", interactive=False)
+                init_status = gr.Textbox(label="Status", interactive=False, lines=2)
 
-                gr.Markdown("### Upload Dataset")
-                file_input = gr.File(label="Upload CSV", file_types=[".csv"])
-                upload_status = gr.Textbox(label="Upload Status", interactive=False)
+                gr.Markdown("### Or upload your own CSV")
+                file_input = gr.File(label="Upload CSV (optional)", file_types=[".csv"])
+                upload_status = gr.Textbox(label="Upload status", interactive=False, lines=1)
 
-                gr.Markdown("### Example Questions")
-                gr.Markdown("""
-- *Describe this dataset*
-- *Show me the correlation between numeric columns*
-- *Create a bar chart of sales by region*
-- *What is the average salary by department?*
-- *Filter rows where age > 30 and summarise*
-- *Generate a full report with key findings*
-                """)
+                gr.Markdown("### Try these questions")
+                example_btns = []
+                for q in EXAMPLE_QUESTIONS:
+                    btn = gr.Button(q, size="sm", variant="secondary")
+                    example_btns.append(btn)
 
-            with gr.Column(scale=2):
-                gr.Markdown("### Dataset Preview")
-                data_preview = gr.HTML(label="Preview")
-
-                gr.Markdown("### Chat with your Data")
-                chatbot = gr.Chatbot(height=450, label="Agent")
+            # ── Right panel ─────────────────────────────────────────────
+            with gr.Column(scale=3):
+                chatbot = gr.Chatbot(
+                    height=560,
+                    label="Agent",
+                    type="messages",
+                    avatar_images=(None, "https://huggingface.co/front/assets/huggingface_logo-noborder.svg"),
+                    show_copy_button=True,
+                )
                 with gr.Row():
                     msg_input = gr.Textbox(
-                        placeholder="Ask a question about your data...",
+                        placeholder="e.g. Load the Spotify dataset and show the top 5 genres by popularity",
                         show_label=False,
                         scale=5,
+                        lines=1,
                     )
                     send_btn = gr.Button("Send", variant="primary", scale=1)
-                clear_btn = gr.Button("Clear Chat", variant="secondary")
+                clear_btn = gr.Button("Clear chat", size="sm", variant="secondary")
 
-        # Wire up events
-        init_btn.click(init_agent, inputs=[hf_token_input], outputs=[init_status])
-        file_input.change(upload_csv, inputs=[file_input], outputs=[upload_status, data_preview])
+        # ── Wire up events ────────────────────────────────────────────
+        init_btn.click(init_agent, inputs=[hf_token_input], outputs=[init_status, msg_input])
+        file_input.change(upload_csv, inputs=[file_input], outputs=[upload_status])
         send_btn.click(chat, inputs=[msg_input, chatbot], outputs=[chatbot, msg_input])
         msg_input.submit(chat, inputs=[msg_input, chatbot], outputs=[chatbot, msg_input])
         clear_btn.click(lambda: ([], ""), outputs=[chatbot, msg_input])
+
+        for btn in example_btns:
+            btn.click(lambda q=btn.value: q, outputs=[msg_input])
 
     return demo
 
