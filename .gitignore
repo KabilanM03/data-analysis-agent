@@ -1,12 +1,40 @@
-.env
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-.DS_Store
-plots/
-*.png
-*.jpg
+*.pyd
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
 venv/
+env/
 .venv/
-.idea/
+
+# Environment / secrets
+.env
+*.env
+
+# Kaggle credentials (never commit)
+kaggle.json
+
+# macOS
+.DS_Store
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# Generated plots (tracked selectively — see below)
+plots/*.png
+
+# Large installer files
+*.pkg
+*.dmg
+
+# Logs
+*.log

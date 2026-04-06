@@ -2,22 +2,7 @@
 
 A conversational AI agent that fetches real-world data from live sources and lets you analyse it using plain English — no SQL or Python required.
 
-Built with [smolagents](https://huggingface.co/docs/smolagents) (Hugging Face), [Gradio](https://gradio.app/), and [Qwen2.5-72B-Instruct](https://huggingface.co/Qwen/Qwen2.5-72B-Instruct).
-
----
-
-## What it does
-
-You ask a question. The agent fetches real data, runs the analysis, and gives you a clear answer — all in one flow.
-
-**Example questions:**
-- *"Fetch Apple stock data for the last year and show me the trend"*
-- *"Compare AAPL, MSFT, GOOGL and NVDA over 6 months"*
-- *"Show me Tesla's key financials"*
-- *"Load the Spotify dataset and find the top genres by popularity"*
-- *"Load the data jobs dataset and show average salary by job title"*
-- *"Create a scatter chart of energy vs danceability"*
-- *"Generate a report with findings and recommendations"*
+Built with [smolagents](https://huggingface.co/docs/smolagents) (Hugging Face), [Gradio](https://gradio.app/), and your choice of model: **Qwen2.5-72B** (free, via HF Inference API) or **Claude Sonnet** (Anthropic).
 
 ---
 
@@ -25,16 +10,36 @@ You ask a question. The agent fetches real data, runs the analysis, and gives yo
 
 ![Demo Screenshot](assets/demo.png)
 
+**Example chart output — Top 10 Spotify Genres by Popularity (50k tracks):**
+
+![Spotify Bar Chart](plots/plot_a99bc736.png)
+
+---
+
+## What it does
+
+Ask a question in plain English. The agent fetches real data, runs the analysis, and gives you a clear answer — charts included.
+
+**Example questions:**
+- *"Load the Spotify dataset and show top 10 genres by popularity"*
+- *"Load the data jobs dataset and show average salary by job title"*
+- *"Search Kaggle for football datasets"*
+- *"Show correlation between all numeric columns"*
+- *"Create a bar chart of total sales by region"*
+- *"Generate a full analysis report with findings and recommendations"*
+
 ---
 
 ## Data Sources
 
 | Source | What it provides | Authentication |
 |---|---|---|
-| [Yahoo Finance](https://finance.yahoo.com/) | Live + historical stock prices, company financials, market comparisons | None required |
 | [Hugging Face Datasets Hub](https://huggingface.co/datasets) | 100,000+ real-world structured datasets | Free HF token |
+| [Kaggle](https://www.kaggle.com/datasets) | Thousands of community datasets across any domain | Kaggle API key (free) |
+| Local CSV | Your own data | Upload in the UI |
 
-**Built-in datasets (load by name):**
+**Built-in HF datasets (load by name):**
+
 | Name | Description |
 |---|---|
 | `spotify` | 114k Spotify tracks with audio features (danceability, energy, genre) |
@@ -46,6 +51,16 @@ You ask a question. The agent fetches real data, runs the analysis, and gives yo
 
 ---
 
+## Model Support
+
+| Model | How to use | Cost |
+|---|---|---|
+| **Qwen2.5-72B-Instruct** (default) | Enter a free HF token | Free |
+| **Claude Sonnet 4.6** | Enter an Anthropic API key | ~$0.05/query |
+| **Local Ollama** | Run Ollama locally — auto-detected | Free |
+
+---
+
 ## Architecture
 
 ```
@@ -53,13 +68,12 @@ User Query (plain English)
         │
         ▼
   CodeAgent (smolagents)
-  LLM: Qwen2.5-72B-Instruct
+  LLM: Qwen2.5-72B / Claude Sonnet / Ollama
         │
-        ├── fetch_stock_data      → Yahoo Finance: OHLCV price history
-        ├── fetch_company_info    → Yahoo Finance: fundamentals, market cap, P/E
-        ├── compare_stocks        → Yahoo Finance: multi-ticker return comparison
         ├── load_hf_dataset       → HF Hub: 100k+ real-world datasets
         ├── list_available_datasets → shows built-in dataset options
+        ├── fetch_kaggle_dataset  → Kaggle: download + load any dataset
+        ├── search_kaggle_datasets → search Kaggle by keyword
         │
         ├── describe_dataset      → stats, dtypes, missing values
         ├── filter_data           → pandas query filter
@@ -79,13 +93,14 @@ The agent uses a `CodeAgent` — it writes and executes Python code to call tool
 | Layer | Technology |
 |---|---|
 | Agent Framework | smolagents (Hugging Face) |
-| LLM | Qwen/Qwen2.5-72B-Instruct via HF Inference API |
-| Market Data | yfinance (Yahoo Finance) |
-| Dataset Source | Hugging Face Datasets Hub |
+| LLM (default) | Qwen2.5-72B-Instruct via HF Inference API |
+| LLM (optional) | Claude Sonnet 4.6 via LiteLLM + Anthropic API |
+| LLM (local) | Any Ollama model (auto-detected) |
+| Dataset Sources | Hugging Face Datasets Hub + Kaggle |
 | Data Analysis | pandas |
 | Visualisation | matplotlib, seaborn |
 | UI | Gradio |
-| Language | Python 3.10+ |
+| Language | Python 3.11+ |
 
 ---
 
@@ -94,17 +109,17 @@ The agent uses a `CodeAgent` — it writes and executes Python code to call tool
 ```
 data-analysis-agent/
 ├── app.py                   # Gradio UI — chat-first interface
-├── agent.py                 # Agent setup, tools, system prompt
+├── agent.py                 # Agent setup, tools, system prompt, model selection
 ├── tools/
 │   ├── __init__.py
-│   ├── fetch_tools.py       # Yahoo Finance + HF Datasets fetching (4 tools)
+│   ├── fetch_tools.py       # HF Datasets + Kaggle fetching (4 tools)
 │   ├── data_tools.py        # describe, filter, aggregate, correlate (5 tools)
 │   ├── viz_tools.py         # chart generation — 6 chart types (1 tool)
 │   └── report_tools.py      # structured markdown report (1 tool)
+├── plots/                   # generated chart images
 ├── data/
-│   └── sample_sales.csv     # fallback CSV for offline demo
+│   └── sample_sales.csv     # sample CSV for offline demo
 ├── requirements.txt
-├── .env.example
 └── README.md
 ```
 
@@ -113,7 +128,7 @@ data-analysis-agent/
 ## Getting Started
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.11+
 - A free [Hugging Face account](https://huggingface.co/join) + token with Inference API access
 
 ### 1. Clone the repository
@@ -135,15 +150,17 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open `http://localhost:7860`. Enter your HF token, then start asking questions.
+Open `http://localhost:7860`. Enter your HF token (free), optionally your Kaggle credentials, then start asking questions.
 
-### 4. Try it
+### 4. Optional: Kaggle datasets
 
-```
-"Compare AAPL, TSLA and NVDA over the last year"
-"Load the Spotify dataset and show the top 10 genres by danceability"
-"What are Tesla's key financials?"
-```
+1. Go to [kaggle.com/settings/account](https://www.kaggle.com/settings/account)
+2. Click **API → Create New Token** — downloads `kaggle.json`
+3. Enter username + key in the UI, or place `kaggle.json` in `~/.kaggle/`
+
+### 5. Optional: Claude Sonnet
+
+Enter your Anthropic API key in **Step 1b** to upgrade the model to Claude Sonnet 4.6.
 
 ---
 
@@ -159,7 +176,7 @@ Built as part of the [Hugging Face AI Agents Course](https://huggingface.co/lear
 
 ## Author
 
-**Kabilan Mani**
+**Kabilan Mani**  
 MSc Data Science & AI — Queen Mary University of London (2024, First Class)
 
 [LinkedIn](https://linkedin.com/in/kabilanmani) · [GitHub](https://github.com/kabilanmani) · [Hugging Face](https://huggingface.co/Kabilanmani)

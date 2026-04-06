@@ -1,6 +1,6 @@
 """
 Real-time data fetching tools.
-Sources: Yahoo Finance (live market data) + Hugging Face Datasets Hub.
+Sources: Yahoo Finance (live market data) + Hugging Face Datasets Hub + Kaggle.
 """
 
 import warnings
@@ -226,4 +226,103 @@ def list_available_datasets() -> str:
     for name, desc in descriptions.items():
         lines.append(f"  • '{name}' — {desc}")
     lines.append("\nOr provide any full Hugging Face dataset ID, e.g. 'username/dataset-name'.")
+    lines.append("\nFor Kaggle datasets, use fetch_kaggle_dataset with a dataset slug, e.g. 'tmdb/tmdb-movie-metadata'.")
     return "\n".join(lines)
+
+
+# ─── Kaggle ────────────────────────────────────────────────────────────────────
+
+@tool
+def fetch_kaggle_dataset(dataset_slug: str, file_name: str = "", max_rows: int = 50000) -> str:
+    """
+    Download a dataset from Kaggle and load it for analysis.
+    Requires KAGGLE_USERNAME and KAGGLE_KEY environment variables (or ~/.kaggle/kaggle.json).
+
+    Args:
+        dataset_slug: Kaggle dataset slug in format 'owner/dataset-name', e.g. 'tmdb/tmdb-movie-metadata'.
+        file_name: Specific CSV file name to load if the dataset has multiple files. Leave empty to auto-detect.
+        max_rows: Maximum number of rows to load (default 50000).
+
+    Returns:
+        Summary of loaded dataset including shape, columns, and preview.
+    """
+    import os
+    import tempfile
+    import glob
+
+    try:
+        from kaggle.api.kaggle_api_extended import KaggleApiClient
+        api = KaggleApiClient()
+    except Exception:
+        try:
+            import kaggle
+            api = kaggle.api
+            api.authenticate()
+        except Exception as e:
+            return (
+                f"Kaggle authentication failed: {e}\n"
+                "Make sure KAGGLE_USERNAME and KAGGLE_KEY are set, or ~/.kaggle/kaggle.json exists.\n"
+                "Get your API key from: https://www.kaggle.com/settings/account"
+            )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            api.dataset_download_files(dataset_slug, path=tmpdir, unzip=True)
+        except Exception as e:
+            return f"Failed to download '{dataset_slug}' from Kaggle: {e}"
+
+        csv_files = glob.glob(os.path.join(tmpdir, "**", "*.csv"), recursive=True)
+        if not csv_files:
+            return f"No CSV files found in dataset '{dataset_slug}'."
+
+        if file_name:
+            matched = [f for f in csv_files if os.path.basename(f) == file_name]
+            target = matched[0] if matched else csv_files[0]
+        else:
+            target = csv_files[0]
+
+        df = pd.read_csv(target, nrows=max_rows)
+
+    set_active_df(df, name=os.path.basename(target))
+
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    cat_cols = df.select_dtypes(include="object").columns.tolist()
+    missing = df.isnull().sum().sum()
+
+    return (
+        f"Loaded '{dataset_slug}' from Kaggle ({os.path.basename(target)}): "
+        f"{df.shape[0]:,} rows x {df.shape[1]} columns.\n"
+        f"Numeric columns ({len(numeric_cols)}): {', '.join(numeric_cols[:8])}{'...' if len(numeric_cols) > 8 else ''}\n"
+        f"Text columns ({len(cat_cols)}): {', '.join(cat_cols[:8])}{'...' if len(cat_cols) > 8 else ''}\n"
+        f"Missing values: {missing:,}\n\n"
+        f"Preview (first 3 rows):\n{df.head(3).to_string()}"
+    )
+
+
+@tool
+def search_kaggle_datasets(query: str, max_results: int = 8) -> str:
+    """
+    Search for datasets on Kaggle by keyword.
+
+    Args:
+        query: Search term, e.g. 'movies', 'sales', 'covid', 'football'.
+        max_results: Number of results to return (default 8).
+
+    Returns:
+        List of matching Kaggle datasets with their slugs and descriptions.
+    """
+    try:
+        import kaggle
+        kaggle.api.authenticate()
+        results = kaggle.api.dataset_list(search=query, max_size=None, page=1)
+        if not results:
+            return f"No Kaggle datasets found for '{query}'."
+        lines = [f"Kaggle datasets matching '{query}':\n"]
+        for ds in results[:max_results]:
+            slug = f"{ds.ref}"
+            size = getattr(ds, 'size', 'unknown size')
+            lines.append(f"  • {slug} — {ds.title} ({size})")
+        lines.append("\nUse fetch_kaggle_dataset('<slug>') to load any of these.")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Kaggle search failed: {e}\nMake sure KAGGLE_USERNAME and KAGGLE_KEY are set."
