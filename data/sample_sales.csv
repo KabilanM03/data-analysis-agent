@@ -1,0 +1,31 @@
+OrderID,Date,Region,Product,Category,Quantity,UnitPrice,TotalSales,CustomerAge,CustomerGender,SalesRep
+1001,2024-01-05,North,Laptop,Electronics,2,899.99,1799.98,34,Male,Alice
+1002,2024-01-08,South,Headphones,Electronics,5,79.99,399.95,28,Female,Bob
+1003,2024-01-12,East,Desk Chair,Furniture,1,349.99,349.99,45,Male,Carol
+1004,2024-01-15,West,Laptop,Electronics,3,899.99,2699.97,31,Female,Dave
+1005,2024-01-18,North,Monitor,Electronics,2,299.99,599.98,27,Male,Alice
+1006,2024-01-22,South,Standing Desk,Furniture,1,599.99,599.99,39,Female,Bob
+1007,2024-01-25,East,Keyboard,Electronics,10,49.99,499.90,24,Male,Carol
+1008,2024-02-01,West,Laptop,Electronics,1,899.99,899.99,52,Female,Dave
+1009,2024-02-05,North,Headphones,Electronics,3,79.99,239.97,33,Male,Alice
+1010,2024-02-08,South,Monitor,Electronics,4,299.99,1199.96,29,Female,Bob
+1011,2024-02-12,East,Desk Chair,Furniture,2,349.99,699.98,41,Male,Carol
+1012,2024-02-15,West,Keyboard,Electronics,7,49.99,349.93,36,Female,Dave
+1013,2024-02-18,North,Standing Desk,Furniture,1,599.99,599.99,48,Male,Alice
+1014,2024-02-22,South,Laptop,Electronics,2,899.99,1799.98,30,Female,Bob
+1015,2024-02-25,East,Headphones,Electronics,6,79.99,479.94,26,Male,Carol
+1016,2024-03-01,West,Monitor,Electronics,3,299.99,899.97,44,Female,Dave
+1017,2024-03-05,North,Desk Chair,Furniture,1,349.99,349.99,35,Male,Alice
+1018,2024-03-08,South,Keyboard,Electronics,8,49.99,399.92,22,Female,Bob
+1019,2024-03-12,East,Laptop,Electronics,2,899.99,1799.98,37,Male,Carol
+1020,2024-03-15,West,Standing Desk,Furniture,2,599.99,1199.98,43,Female,Dave
+1021,2024-03-18,North,Headphones,Electronics,4,79.99,319.96,25,Male,Alice
+1022,2024-03-22,South,Monitor,Electronics,2,299.99,599.98,38,Female,Bob
+1023,2024-03-25,East,Keyboard,Electronics,12,49.99,599.88,29,Male,Carol
+1024,2024-04-01,West,Laptop,Electronics,1,899.99,899.99,50,Female,Dave
+1025,2024-04-05,North,Desk Chair,Furniture,3,349.99,1049.97,32,Male,Alice
+1026,2024-04-08,South,Standing Desk,Furniture,1,599.99,599.99,46,Female,Bob
+1027,2024-04-12,East,Monitor,Electronics,5,299.99,1499.95,28,Male,Carol
+1028,2024-04-15,West,Headphones,Electronics,2,79.99,159.98,31,Female,Dave
+1029,2024-04-18,North,Keyboard,Electronics,9,49.99,449.91,27,Male,Alice
+1030,2024-04-22,South,Laptop,Electronics,3,899.99,2699.97,40,Female,Bob
