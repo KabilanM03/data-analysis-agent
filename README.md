@@ -8,11 +8,11 @@ Built with [smolagents](https://huggingface.co/docs/smolagents) (Hugging Face), 
 
 ## Demo
 
-![Demo Screenshot](assets/demo.png)
+![Demo Screenshot](assets/ui_screenshot.png)
 
 **Example chart output — Top 10 Spotify Genres by Popularity (50k tracks):**
 
-![Spotify Bar Chart](plots/plot_a99bc736.png)
+![Spotify Bar Chart](assets/chart_genres.png)
 
 ---
 
