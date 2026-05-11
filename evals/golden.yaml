@@ -1,0 +1,34 @@
+# Golden-question fixture for end-to-end agent evaluation.
+#
+# Each entry is a prompt and a list of strings or numbers that MUST appear
+# in the agent's final answer. This is a smoke check, not a benchmark.
+#
+# Run with: python -m evals.run_evals
+
+- id: spotify_top_genre
+  prompt: "Load the Spotify dataset and tell me the single most popular track_genre."
+  must_contain:
+    - "track_genre"
+
+- id: titanic_survival_rate
+  prompt: "Load the Titanic dataset and tell me the overall survival rate as a percentage."
+  must_contain:
+    - "%"
+    - "survi"
+
+- id: data_jobs_avg_salary
+  prompt: "Load the data jobs dataset. What is the average salary in USD?"
+  must_contain:
+    - "salary"
+    - "$"
+
+- id: correlation_request
+  prompt: "Load the Titanic dataset and show me the correlation between age and fare."
+  must_contain:
+    - "corr"
+
+- id: report_generation
+  prompt: "Load the airbnb dataset and generate an analysis report with one finding and one recommendation."
+  must_contain:
+    - "Findings"
+    - "Recommendations"
