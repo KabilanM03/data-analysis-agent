@@ -1,188 +1,137 @@
 # Data Analysis Agent
 
-A conversational AI agent that fetches real-world data from live sources and lets you analyse it using plain English — no SQL or Python required.
+A small conversational agent that answers questions about real-world data (Hugging Face Datasets, Kaggle, or your own CSV) in plain English. Built while working through the [Hugging Face AI Agents Course](https://huggingface.co/learn/agents-course/) (Units 1-3) using `smolagents` and Gradio.
 
-Built with [smolagents](https://huggingface.co/docs/smolagents) (Hugging Face), [Gradio](https://gradio.app/), and your choice of model: **Qwen2.5-72B** (free, via HF Inference API) or **Claude Sonnet** (Anthropic).
-
----
-
-## Demo
-
-![Demo Screenshot](assets/ui_screenshot.png)
-
-**Example chart output — Top 10 Spotify Genres by Popularity (50k tracks):**
-
-![Spotify Bar Chart](assets/chart_genres.png)
-
----
+See [NOTES.md](NOTES.md) for the build journal: why smolagents over LangChain, the state-management refactor, what I'd do differently next time.
 
 ## What it does
 
-Ask a question in plain English. The agent fetches real data, runs the analysis, and gives you a clear answer — charts included.
+You ask a question, the agent picks a dataset, loads it, runs the analysis, and answers with numbers and (when useful) a chart.
 
-**Example questions:**
-- *"Load the Spotify dataset and show top 10 genres by popularity"*
-- *"Load the data jobs dataset and show average salary by job title"*
-- *"Search Kaggle for football datasets"*
-- *"Show correlation between all numeric columns"*
-- *"Create a bar chart of total sales by region"*
-- *"Generate a full analysis report with findings and recommendations"*
-
----
-
-## Data Sources
-
-| Source | What it provides | Authentication |
-|---|---|---|
-| [Hugging Face Datasets Hub](https://huggingface.co/datasets) | 100,000+ real-world structured datasets | Free HF token |
-| [Kaggle](https://www.kaggle.com/datasets) | Thousands of community datasets across any domain | Kaggle API key (free) |
-| Local CSV | Your own data | Upload in the UI |
-
-**Built-in HF datasets (load by name):**
-
-| Name | Description |
-|---|---|
-| `spotify` | 114k Spotify tracks with audio features (danceability, energy, genre) |
-| `titanic` | Classic Titanic passenger survival dataset |
-| `netflix` | Netflix shows and movies catalogue |
-| `sales` | B2B sales transaction records |
-| `data jobs` | Data science job postings with salary and skills |
-| `airbnb` | NYC Airbnb listings with price and reviews |
-
----
-
-## Model Support
-
-| Model | How to use | Cost |
-|---|---|---|
-| **Qwen2.5-72B-Instruct** (default) | Enter a free HF token | Free |
-| **Claude Sonnet 4.6** | Enter an Anthropic API key | ~$0.05/query |
-| **Local Ollama** | Run Ollama locally — auto-detected | Free |
-
----
+```
+"Load the Spotify dataset and show the top 10 genres by popularity"
+"Search Kaggle for football datasets"
+"Show correlation between all numeric columns"
+"Generate a full analysis report"
+```
 
 ## Architecture
 
 ```
-User Query (plain English)
-        │
-        ▼
-  CodeAgent (smolagents)
-  LLM: Qwen2.5-72B / Claude Sonnet / Ollama
-        │
-        ├── load_hf_dataset       → HF Hub: 100k+ real-world datasets
-        ├── list_available_datasets → shows built-in dataset options
-        ├── fetch_kaggle_dataset  → Kaggle: download + load any dataset
-        ├── search_kaggle_datasets → search Kaggle by keyword
-        │
-        ├── describe_dataset      → stats, dtypes, missing values
-        ├── filter_data           → pandas query filter
-        ├── aggregate_data        → groupby + aggregation
-        ├── correlation_analysis  → correlation matrix
-        │
-        ├── create_visualization  → bar, line, scatter, histogram, box, heatmap
-        └── generate_report       → structured markdown report
+user query
+   |
+   v
+CodeAgent (smolagents)            runs LLM-generated Python against the tools
+   |                              LLM: HF Inference (Qwen) / Anthropic Claude / local Ollama
+   |-- load_hf_dataset            Hugging Face Datasets Hub (shortcuts + arbitrary IDs)
+   |-- fetch_kaggle_dataset       Kaggle API
+   |-- load_dataset               local CSV
+   |-- describe_dataset
+   |-- filter_data
+   |-- aggregate_data
+   |-- correlation_analysis
+   |-- create_visualization       matplotlib + seaborn, returns a [CHART:...] sentinel
+   `-- generate_report            markdown summary
 ```
 
-The agent uses a `CodeAgent` — it writes and executes Python code to call tools, rather than following a fixed pipeline. This means it can handle unexpected questions without breaking.
+Per-user state lives in a `Session` dataclass bound to a `ContextVar` for the duration of each `agent.run()` call, so two browser tabs hitting the same Python process don't clobber each other's dataframe.
 
----
+## Stack
 
-## Tech Stack
-
-| Layer | Technology |
+| Layer | Choice |
 |---|---|
-| Agent Framework | smolagents (Hugging Face) |
-| LLM (default) | Qwen2.5-72B-Instruct via HF Inference API |
-| LLM (optional) | Claude Sonnet 4.6 via LiteLLM + Anthropic API |
-| LLM (local) | Any Ollama model (auto-detected) |
-| Dataset Sources | Hugging Face Datasets Hub + Kaggle |
-| Data Analysis | pandas |
-| Visualisation | matplotlib, seaborn |
+| Agent framework | `smolagents` (Hugging Face) |
+| LLM (default) | `Qwen2.5-72B-Instruct` via HF Inference API |
+| LLM (optional) | Claude Sonnet via LiteLLM, or local Ollama |
+| Data | pandas |
+| Charts | matplotlib + seaborn |
 | UI | Gradio |
-| Language | Python 3.11+ |
+| Python | 3.11+ |
 
----
-
-## Project Structure
-
-```
-data-analysis-agent/
-├── app.py                   # Gradio UI — chat-first interface
-├── agent.py                 # Agent setup, tools, system prompt, model selection
-├── tools/
-│   ├── __init__.py
-│   ├── fetch_tools.py       # HF Datasets + Kaggle fetching (4 tools)
-│   ├── data_tools.py        # describe, filter, aggregate, correlate (5 tools)
-│   ├── viz_tools.py         # chart generation — 6 chart types (1 tool)
-│   └── report_tools.py      # structured markdown report (1 tool)
-├── plots/                   # generated chart images
-├── data/
-│   └── sample_sales.csv     # sample CSV for offline demo
-├── requirements.txt
-└── README.md
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-- Python 3.11+
-- A free [Hugging Face account](https://huggingface.co/join) + token with Inference API access
-
-### 1. Clone the repository
+## Run it locally
 
 ```bash
-git clone https://github.com/kabilanmani/data-analysis-agent.git
+git clone https://github.com/KabilanM03/data-analysis-agent.git
 cd data-analysis-agent
-```
-
-### 2. Install dependencies
-
-```bash
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 3. Run the app
-
-```bash
 python app.py
 ```
 
-Open `http://localhost:7860`. Enter your HF token (free), optionally your Kaggle credentials, then start asking questions.
+Open `http://localhost:7860`. Paste your HF token, optionally your Kaggle credentials, then ask a question.
 
-### 4. Optional: Kaggle datasets
+### Authentication
 
-1. Go to [kaggle.com/settings/account](https://www.kaggle.com/settings/account)
-2. Click **API → Create New Token** — downloads `kaggle.json`
-3. Enter username + key in the UI, or place `kaggle.json` in `~/.kaggle/`
+- **HF token**: free at <https://huggingface.co/settings/tokens>. Make sure Inference API access is enabled.
+- **Kaggle**: token from <https://www.kaggle.com/settings/account>, then either paste username + key in the UI or drop `kaggle.json` into `~/.kaggle/`.
+- **Anthropic**: only needed if you want Claude instead of Qwen.
 
-### 5. Optional: Claude Sonnet
+### Built-in HF shortcuts
 
-Enter your Anthropic API key in **Step 1b** to upgrade the model to Claude Sonnet 4.6.
+| Shortcut | Dataset |
+|---|---|
+| `spotify` | `maharshipandya/spotify-tracks-dataset` |
+| `titanic` | `mstz/titanic` |
+| `netflix` | `hugginglearners/netflix-shows` |
+| `sales` | `Thewillonline/sales_data_sample` |
+| `data jobs` | `lukebarousse/data_jobs` |
+| `airbnb` | `gradio/NYC-Airbnb-Open-Data` |
 
----
+You can also pass any HF dataset id like `username/dataset-name`.
 
-## Course Context
+## Project layout
 
-Built as part of the [Hugging Face AI Agents Course](https://huggingface.co/learn/agents-course/):
+```
+data-analysis-agent/
+  app.py               Gradio UI + session wiring
+  agent.py             CodeAgent build + model selection
+  tools/
+    _state.py          per-session DataframeStore + ContextVar
+    data_tools.py      load / describe / filter / aggregate / correlate
+    fetch_tools.py     HF and Kaggle fetchers
+    viz_tools.py       chart rendering
+    report_tools.py    markdown report
+  tests/               unit + mocked tests
+  evals/               golden-question fixture + runner
+  plots/               generated PNGs (gitignored)
+  data/sample_sales.csv
+  requirements.txt
+```
 
-- **Unit 1** — Agent fundamentals: Tools, Think → Act → Observe loop
-- **Unit 2** — smolagents: CodeAgent, tool creation, multi-tool orchestration
-- **Unit 3** — Real-world use case: multi-source data analysis agent
+## Tests
 
----
+```bash
+pytest -q
+```
+
+Network-dependent tools (HF, Kaggle) are mocked. End-to-end golden questions live in `evals/golden.yaml` and require live credentials:
+
+```bash
+python -m evals.run_evals
+```
+
+## Known limitations
+
+- `CodeAgent` executes LLM-generated Python in-process. There is no sandbox; do not point it at production data or expose it as a public service.
+- The agent and dataframe state are per-Python-process. Gradio sessions are isolated via `ContextVar`, but the model client itself is shared, so rate limits apply at the process level.
+- Charts are PNGs on disk surfaced via Gradio's `allowed_paths`. Fine for local Gradio, awkward for fully headless deployments.
+
+## Course context
+
+Units 1-3 of the Hugging Face AI Agents Course covered:
+
+- the Think -> Act -> Observe loop and tool design
+- writing `@tool` functions in `smolagents`
+- composing tools into a multi-step agent
+
+This is the Unit 3 capstone, extended with Kaggle support, a Gradio chat UI, mocked tool tests, and a small eval harness.
 
 ## Author
 
-**Kabilan Mani**  
-MSc Data Science & AI — Queen Mary University of London (2024, First Class)
+**Kabilan Mani** -- MSc Data Science & AI, Queen Mary University of London (2024, Merit).
 
-[LinkedIn](https://linkedin.com/in/kabilanmani) · [GitHub](https://github.com/kabilanmani) · [Hugging Face](https://huggingface.co/Kabilanmani)
+[LinkedIn](https://www.linkedin.com/in/kabilan-mani) -- [GitHub](https://github.com/KabilanM03) -- [Hugging Face](https://huggingface.co/Kabilanmani)
 
----
-
-## License
+## Licence
 
 MIT
