@@ -3,13 +3,16 @@
 import os
 import re
 import json
+import logging
 from dataclasses import dataclass, field
 
 import gradio as gr
 import pandas as pd
 
 from agent import build_agent
-from tools import DataframeStore, bind_store, _active_store_ctx, PLOTS_DIR
+from tools import DataframeStore, bind_store, _active_store_ctx, pop_charts, PLOTS_DIR
+
+logger = logging.getLogger(__name__)
 
 KAGGLE_JSON = os.path.expanduser("~/.kaggle/kaggle.json")
 CHART_RE = re.compile(r"\[CHART:([^\]]+)\]")
@@ -20,6 +23,7 @@ class Session:
     agent: object | None = None
     model_name: str = ""
     store: DataframeStore = field(default_factory=DataframeStore)
+    has_history: bool = False  # has the agent run at least once this session?
 
 
 def make_session() -> Session:
@@ -35,27 +39,18 @@ def load_kaggle_creds() -> tuple[str, str]:
         return "", ""
 
 
-def save_kaggle_creds(username: str, key: str) -> None:
-    os.makedirs(os.path.dirname(KAGGLE_JSON), exist_ok=True)
-    with open(KAGGLE_JSON, "w") as f:
-        json.dump({"username": username, "key": key}, f)
-    try:
-        os.chmod(KAGGLE_JSON, 0o600)
-    except OSError:
-        # chmod isn't meaningful on Windows; carry on
-        pass
-
-
 def init_agent(hf_token, anthropic_key, kaggle_user, kaggle_key, session):
+    if session is None:
+        session = make_session()
     user = kaggle_user.strip()
     key = kaggle_key.strip()
     if not (user and key):
         user, key = load_kaggle_creds()
     if user and key:
+        # used by the Kaggle client for this process; we deliberately do NOT write
+        # a visitor's credentials to the server's ~/.kaggle/kaggle.json
         os.environ["KAGGLE_USERNAME"] = user
         os.environ["KAGGLE_KEY"] = key
-        if kaggle_user.strip() and kaggle_key.strip():
-            save_kaggle_creds(user, key)
 
     try:
         agent, model_name = build_agent(
@@ -76,6 +71,8 @@ def init_agent(hf_token, anthropic_key, kaggle_user, kaggle_key, session):
 
 
 def upload_csv(file, session):
+    if session is None:
+        session = make_session()
     if file is None:
         return "", session
     df = pd.read_csv(file.name)
@@ -87,7 +84,7 @@ def chat(message, history, session):
     if not message.strip():
         return history, ""
     history = history + [{"role": "user", "content": message}]
-    if session.agent is None:
+    if session is None or session.agent is None:
         history.append({
             "role": "assistant",
             "content": "Agent not initialised. Configure on the left and click Launch agent.",
@@ -95,24 +92,47 @@ def chat(message, history, session):
         return history, ""
 
     token = bind_store(session.store)
+    error = None
     try:
-        response = session.agent.run(message)
+        # keep conversational memory after the first turn so follow-ups ("now plot
+        # that", "what about the EU?") work; reset on the very first run
+        response = session.agent.run(message, reset=not session.has_history)
+        session.has_history = True
     except Exception as e:
-        history.append({"role": "assistant", "content": f"Error: {e}"})
-        return history, ""
+        logger.exception("agent.run failed: %s", e)
+        error = e
     finally:
+        # collect any charts the run produced while the store is still bound
+        produced_charts = pop_charts()
         _active_store_ctx.reset(token)
 
+    if error is not None:
+        history.append({
+            "role": "assistant",
+            "content": "Something went wrong while running the analysis. Try rephrasing "
+                       "your question; the full error is in the server logs.",
+        })
+        return history, ""
+
     text = str(response)
-    chart_paths = CHART_RE.findall(text)
     cleaned = CHART_RE.sub("", text).strip()
     if cleaned:
         history.append({"role": "assistant", "content": cleaned})
-    for cp in chart_paths:
-        cp = cp.strip()
-        if os.path.exists(cp):
+
+    # merge charts named in the answer with those the tool registered, de-duped, so a
+    # chart still reaches the UI even if the model dropped the [CHART:] marker
+    seen = set()
+    for cp in [p.strip() for p in CHART_RE.findall(text)] + produced_charts:
+        if cp and cp not in seen and os.path.exists(cp):
+            seen.add(cp)
             history.append({"role": "assistant", "content": {"path": cp}})
     return history, ""
+
+
+def clear_chat(session):
+    if session is not None:
+        session.has_history = False
+    return [], ""
 
 
 EXAMPLES = [
@@ -174,7 +194,7 @@ def build_ui():
         file_input.change(upload_csv, inputs=[file_input, session], outputs=[upload_status, session])
         send_btn.click(chat, inputs=[msg, chatbot, session], outputs=[chatbot, msg])
         msg.submit(chat, inputs=[msg, chatbot, session], outputs=[chatbot, msg])
-        clear_btn.click(lambda: ([], ""), outputs=[chatbot, msg])
+        clear_btn.click(clear_chat, inputs=[session], outputs=[chatbot, msg])
 
     return demo
 
