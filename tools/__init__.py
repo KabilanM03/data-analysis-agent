@@ -3,7 +3,11 @@ from ._state import (
     bind_store,
     get_active_df,
     set_active_df,
+    set_view,
+    reset_view,
     get_active_name,
+    register_chart,
+    pop_charts,
     check_columns,
     _active_store_ctx,
 )
@@ -11,6 +15,7 @@ from .data_tools import (
     load_dataset,
     describe_dataset,
     filter_data,
+    reset_filters,
     aggregate_data,
     correlation_analysis,
 )
@@ -31,6 +36,7 @@ ALL_TOOLS = [
     load_dataset,
     describe_dataset,
     filter_data,
+    reset_filters,
     aggregate_data,
     correlation_analysis,
     create_visualization,

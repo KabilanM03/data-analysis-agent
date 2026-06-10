@@ -1,5 +1,7 @@
 """Chart rendering tool. Saves a PNG and returns a [CHART:...] sentinel that
-the Gradio chat handler picks up and turns into an inline image.
+the Gradio chat handler picks up and turns into an inline image. The path is also
+registered with the session store so the UI can render it even if the model drops
+the marker from its final answer.
 """
 
 import os
@@ -8,10 +10,11 @@ import uuid
 import matplotlib
 matplotlib.use("Agg")  # headless; Gradio renders the saved PNG
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 from smolagents import tool
 
-from ._state import get_active_df, check_columns
+from ._state import get_active_df, check_columns, register_chart
 
 PLOTS_DIR = os.path.abspath(
     os.environ.get("PLOTS_DIR", os.path.join(os.path.dirname(__file__), "..", "plots"))
@@ -21,6 +24,7 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 sns.set_theme(style="whitegrid", palette="muted")
 
 VALID_CHARTS = {"bar", "line", "scatter", "histogram", "box", "heatmap"}
+MAX_BARS = 20  # cap categories on a count bar chart so it stays readable
 
 
 def _save(fig) -> str:
@@ -65,22 +69,39 @@ def create_visualization(
     try:
         if chart_type == "bar":
             if y_column:
-                data = df.groupby(x_column)[y_column].mean(numeric_only=True).reset_index()
+                if not pd.api.types.is_numeric_dtype(df[y_column]):
+                    plt.close(fig)
+                    nums = df.select_dtypes(include="number").columns.tolist()
+                    hint = ", ".join(nums) if nums else "none available"
+                    return (
+                        f"'{y_column}' is not numeric; a bar chart needs a numeric "
+                        f"y_column. Numeric columns: {hint}."
+                    )
+                # group by x (and hue if given) so seaborn actually receives the hue column
+                group_cols = [x_column] + ([hue_column] if hue_column else [])
+                data = df.groupby(group_cols)[y_column].mean(numeric_only=True).reset_index()
                 sns.barplot(data=data, x=x_column, y=y_column, hue=hue_column or None, ax=ax)
             else:
-                data = df[x_column].value_counts().reset_index()
+                counts = df[x_column].value_counts()
+                total = len(counts)
+                counts = counts.head(MAX_BARS)
+                data = counts.reset_index()
                 data.columns = [x_column, "count"]
                 sns.barplot(data=data, x=x_column, y="count", ax=ax)
+                if total > MAX_BARS:
+                    final_title += f" (top {MAX_BARS} of {total})"
             ax.tick_params(axis="x", rotation=45)
 
         elif chart_type == "line":
             if not y_column:
+                plt.close(fig)
                 return "y_column is required for a line chart."
             sns.lineplot(data=df, x=x_column, y=y_column, hue=hue_column or None, ax=ax)
             ax.tick_params(axis="x", rotation=45)
 
         elif chart_type == "scatter":
             if not y_column:
+                plt.close(fig)
                 return "y_column is required for a scatter chart."
             sns.scatterplot(data=df, x=x_column, y=y_column, hue=hue_column or None, ax=ax, alpha=0.7)
 
@@ -89,6 +110,7 @@ def create_visualization(
 
         elif chart_type == "box":
             if not y_column:
+                plt.close(fig)
                 return "y_column is required for a box chart."
             sns.boxplot(data=df, x=x_column, y=y_column, hue=hue_column or None, ax=ax)
             ax.tick_params(axis="x", rotation=45)
@@ -96,6 +118,7 @@ def create_visualization(
         elif chart_type == "heatmap":
             numeric = df.select_dtypes(include="number")
             if numeric.empty:
+                plt.close(fig)
                 return "No numeric columns for a heatmap."
             sns.heatmap(numeric.corr(), annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
     except Exception as e:
@@ -105,4 +128,5 @@ def create_visualization(
     ax.set_title(final_title, fontsize=13, fontweight="bold", pad=10)
     fig.tight_layout()
     path = _save(fig)
+    register_chart(path)
     return f"[CHART:{path}]\nSaved chart to {os.path.basename(path)}."

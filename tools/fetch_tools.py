@@ -39,7 +39,10 @@ def load_hf_dataset(dataset_name: str, split: str = "train", max_rows: int = 500
     """
     key = dataset_name.lower().strip()
     if key in KNOWN_DATASETS:
-        hf_id, split = KNOWN_DATASETS[key]
+        # only adopt the shortcut's split when the caller didn't ask for a specific one
+        hf_id, default_split = KNOWN_DATASETS[key]
+        if split == "train":
+            split = default_split
     else:
         hf_id = dataset_name
 
@@ -131,11 +134,14 @@ def fetch_kaggle_dataset(dataset_slug: str, file_name: str = "", max_rows: int =
 
         if file_name:
             matched = [c for c in csvs if os.path.basename(c) == file_name]
-            target = matched[0] if matched else csvs[0]
             if not matched:
-                # TODO: surface this back to the agent so it can ask the user
-                # which file they wanted; for now we silently fall back.
-                pass
+                available = ", ".join(sorted(os.path.basename(c) for c in csvs))
+                return (
+                    f"No file named '{file_name}' in {dataset_slug}. "
+                    f"Available CSVs: {available}. "
+                    f"Call fetch_kaggle_dataset again with one of these as file_name."
+                )
+            target = matched[0]
         else:
             target = csvs[0]
 
