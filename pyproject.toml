@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-analysis-agent"
+version = "0.1.0"
+description = "A smolagents data-analysis agent: fetches datasets, analyses them, and plots, all from plain-English questions."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kabilan Mani" }]
+dynamic = ["dependencies"]
+
+[tool.setuptools]
+py-modules = ["agent", "app"]
+packages = ["tools", "evals"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+# put the project root on sys.path so tests import `tools`/`agent` without hacks
+pythonpath = ["."]
