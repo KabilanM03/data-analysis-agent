@@ -1,31 +1,42 @@
 # Golden-question fixture for end-to-end agent evaluation.
 #
-# Each entry is a prompt and a list of strings or numbers that MUST appear
-# in the agent's final answer. This is a smoke check, not a benchmark.
+# Each entry is a prompt and a list of strings that MUST appear (case-insensitive)
+# in the agent's final answer.
 #
 # Run with: python -m evals.run_evals
+#
+# HARDENING: the `must_contain` needles below are deliberately structural (a unit,
+# a keyword) so the harness runs offline-of-ground-truth. To turn this from a smoke
+# check into a real correctness eval, run it once with live credentials, read the
+# correct value the agent returns, confirm it by hand, then add that exact value as
+# a needle (see the `expect_value` hints). Datasets are loaded with max_rows=5000,
+# so the ground-truth answers are deterministic once pinned.
 
 - id: spotify_top_genre
   prompt: "Load the Spotify dataset and tell me the single most popular track_genre."
   must_contain:
     - "track_genre"
+  # expect_value: add the real top genre here after a live run, e.g. "pop-film"
 
 - id: titanic_survival_rate
   prompt: "Load the Titanic dataset and tell me the overall survival rate as a percentage."
   must_contain:
     - "%"
     - "survi"
+  # expect_value: add the real rate here after a live run, e.g. "38"
 
 - id: data_jobs_avg_salary
   prompt: "Load the data jobs dataset. What is the average salary in USD?"
   must_contain:
     - "salary"
     - "$"
+  # expect_value: add the real average here after a live run
 
 - id: correlation_request
   prompt: "Load the Titanic dataset and show me the correlation between age and fare."
   must_contain:
     - "corr"
+  # expect_value: add the real correlation coefficient here after a live run
 
 - id: report_generation
   prompt: "Load the airbnb dataset and generate an analysis report with one finding and one recommendation."

@@ -62,7 +62,9 @@ def test_correlation_validates_columns(sample_df):
     assert "not in dataset" in out
 
 
-def test_load_dataset_roundtrip(tmp_path, sample_df):
+def test_load_dataset_roundtrip(tmp_path, sample_df, monkeypatch):
+    # load_dataset only reads CSVs under DATA_DIR; point it at the tmp dir
+    monkeypatch.setattr("tools.data_tools.DATA_DIR", str(tmp_path))
     p = tmp_path / "x.csv"
     sample_df.to_csv(p, index=False)
     out = load_dataset(str(p))

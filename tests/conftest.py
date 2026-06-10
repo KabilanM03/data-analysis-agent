@@ -4,15 +4,11 @@ The agent tools read from a ContextVar-backed dataframe store. Each test gets
 a fresh store so state from one test does not leak into the next.
 """
 
-import sys
-import os
-
 import pandas as pd
 import pytest
 
-# allow running pytest from any directory
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + "/.."))
-
+# the project root is put on sys.path via [tool.pytest.ini_options] pythonpath in
+# pyproject.toml, so `tools` / `agent` import cleanly without a sys.path hack here
 from tools._state import DataframeStore, bind_store, _active_store_ctx
 
 
