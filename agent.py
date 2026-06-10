@@ -23,6 +23,12 @@ for Kaggle, or load_dataset for a local CSV. Use describe_dataset only when you 
 don't already have. Use filter_data, aggregate_data, correlation_analysis, create_visualization and
 generate_report as appropriate.
 
+filter_data is persistent: after you filter, every later tool operates on the filtered subset. Call
+reset_filters before an analysis that needs the full dataset again.
+
+When create_visualization returns a marker like [CHART:/path/to/file.png], copy that marker verbatim into
+your final answer so the chart is shown to the user. Do not paraphrase or drop it.
+
 Quote concrete numbers in your final answer. Do not invent values that the tools did not return.
 """
 
@@ -37,8 +43,12 @@ def _ollama_running() -> bool:
 
 def _build_model(hf_token, anthropic_key):
     if anthropic_key:
-        os.environ["ANTHROPIC_API_KEY"] = anthropic_key
-        return LiteLLMModel(model_id=DEFAULT_ANTHROPIC_MODEL), DEFAULT_ANTHROPIC_MODEL
+        # pass the key into the client rather than mutating process-wide env, so
+        # one user's key can't leak into another session sharing the process
+        return (
+            LiteLLMModel(model_id=DEFAULT_ANTHROPIC_MODEL, api_key=anthropic_key),
+            DEFAULT_ANTHROPIC_MODEL,
+        )
 
     token = hf_token or os.getenv("HF_TOKEN")
     if token:
