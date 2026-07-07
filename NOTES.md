@@ -41,13 +41,24 @@ call so each visitor gets a fresh `Session`.
 
 ## Charts in a chat box
 
-Returning a markdown image link from a tool looked clean but Gradio 5
+Returning a markdown image link from a tool looked clean but Gradio
 doesn't serve arbitrary file paths to the Chatbot component by default.
 You either configure `allowed_paths` on `demo.launch()` or surface the
 image as a separate message with `{"path": "..."}` content. I went with
 both: the viz tool returns a `[CHART:<path>]` sentinel, the chat handler
 strips it from the text response and appends the image as its own
 assistant message.
+
+## Pinning a dependency is not the same as testing against it
+
+While preparing the 1.0 release I bumped the pin to Gradio 6 and assumed
+the app still worked because the test suite was green. It wasn't: Gradio 6
+removed the `type="messages"` argument on `Chatbot` (messages became the
+default), so `app.py` crashed on the very first line of UI construction.
+None of the 29 tests caught it because none of them ever built the UI;
+they all test the tools layer. Two fixes: dropped the dead argument, and
+added a test that actually calls `build_ui()` so the suite fails the next
+time a Gradio upgrade breaks a constructor.
 
 ## What I haven't done
 
