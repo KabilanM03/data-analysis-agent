@@ -75,9 +75,12 @@ def upload_csv(file, session):
         session = make_session()
     if file is None:
         return "", session
-    df = pd.read_csv(file.name)
+    try:
+        df = pd.read_csv(file.name)
+    except Exception as e:
+        return f"Could not read **{os.path.basename(file.name)}**: {e}", session
     session.store.set(df, name=os.path.basename(file.name))
-    return f"Loaded **{os.path.basename(file.name)}** — {df.shape[0]:,} rows x {df.shape[1]} cols.", session
+    return f"Loaded **{os.path.basename(file.name)}**: {df.shape[0]:,} rows x {df.shape[1]} cols.", session
 
 
 def chat(message, history, session):
@@ -178,7 +181,8 @@ def build_ui():
                 upload_status = gr.Markdown("")
 
             with gr.Column(scale=3):
-                chatbot = gr.Chatbot(type="messages", height=560, label="Chat")
+                # gradio 6 dropped the `type` kwarg; messages format is the default
+                chatbot = gr.Chatbot(height=560, label="Chat")
                 with gr.Row():
                     msg = gr.Textbox(placeholder="Ask a question about the data...",
                                      show_label=False, scale=5, lines=1, container=False)

@@ -1,6 +1,12 @@
 # Data Analysis Agent
 
+[![CI](https://github.com/KabilanM03/data-analysis-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/KabilanM03/data-analysis-agent/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 A small conversational agent that answers questions about real-world data (Hugging Face Datasets, Kaggle, or your own CSV) in plain English. Built while working through the [Hugging Face AI Agents Course](https://huggingface.co/learn/agents-course/) (Units 1-3) using `smolagents` and Gradio.
+
+![Chat UI](assets/ui_screenshot.png)
 
 See [NOTES.md](NOTES.md) for the build journal: why smolagents over LangChain, the state-management refactor, what I'd do differently next time.
 
@@ -14,6 +20,10 @@ You ask a question, the agent picks a dataset, loads it, runs the analysis, and 
 "Show correlation between all numeric columns"
 "Generate a full analysis report"
 ```
+
+| | |
+|---|---|
+| ![Top genres bar chart](assets/chart_genres.png) | ![Correlation heatmap](assets/chart_correlation.png) |
 
 ## Architecture
 
@@ -46,7 +56,7 @@ Per-user state lives in a `Session` dataclass bound to a `ContextVar` for the du
 | Data | pandas |
 | Charts | matplotlib + seaborn |
 | UI | Gradio |
-| Python | 3.11+ |
+| Python | 3.10+ |
 
 ## Run it locally
 

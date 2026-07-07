@@ -119,3 +119,27 @@ def test_fetch_kaggle_lists_csvs_on_filename_mismatch(mock_api, tmp_path):
     out = fetch_kaggle_dataset("owner/ds", file_name="missing.csv")
     assert "No file named 'missing.csv'" in out
     assert "alpha.csv" in out and "beta.csv" in out
+
+
+# -- bug 11: gradio 6 removed Chatbot(type=...); UI must build under the pin
+def test_build_ui_constructs():
+    gr = pytest.importorskip("gradio")
+    from app import build_ui
+
+    demo = build_ui()
+    assert isinstance(demo, gr.Blocks)
+
+
+# -- bug 12: a malformed CSV upload must return a message, not raise --------
+def test_upload_csv_bad_file_returns_message(tmp_path):
+    pytest.importorskip("gradio")
+    from app import make_session, upload_csv
+
+    bad = tmp_path / "bad.csv"
+    bad.write_bytes(b"\xff\xfe\x00broken\x00")
+
+    class FakeFile:
+        name = str(bad)
+
+    msg, _session = upload_csv(FakeFile(), make_session())
+    assert "Could not read" in msg

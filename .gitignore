@@ -32,3 +32,6 @@ plots/*.png
 
 # pytest
 .pytest_cache/
+
+# Local drafts, not part of the project
+linkedin_post.md
