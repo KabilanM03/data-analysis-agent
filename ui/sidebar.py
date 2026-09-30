@@ -50,12 +50,13 @@ def render() -> None:
         else:
             st.info("Not launched yet. Pick a model and launch.", icon=":material/power_settings_new:")
 
+        # outside the form so changing it reruns and updates the fields below
+        provider = st.selectbox(
+            "Provider", list(PROVIDERS), format_func=lambda k: PROVIDERS[k].label,
+            index=list(PROVIDERS).index(sess.provider) if sess.provider in PROVIDERS else 0,
+        )
+        spec = PROVIDERS[provider]
         with st.form("agent_settings", border=False):
-            provider = st.selectbox(
-                "Provider", list(PROVIDERS), format_func=lambda k: PROVIDERS[k].label,
-                index=list(PROVIDERS).index(sess.provider) if sess.provider in PROVIDERS else 0,
-            )
-            spec = PROVIDERS[provider]
             model_id = st.text_input("Model id", placeholder=spec.default_model,
                                      help="Blank uses the default shown. Any id the provider serves works.")
             have_key = bool(spec.key_env and os.getenv(spec.key_env))

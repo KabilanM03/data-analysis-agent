@@ -49,7 +49,8 @@ PROVIDERS: dict[str, Provider] = {
     "openai": Provider("OpenAI", os.getenv("OPENAI_MODEL", "openai/gpt-5-mini"), "OPENAI_API_KEY"),
     "gemini": Provider("Google Gemini", os.getenv("GEMINI_MODEL", "gemini/gemini-2.5-flash"), "GEMINI_API_KEY"),
     "hf": Provider("Hugging Face Inference", os.getenv("HF_MODEL", "Qwen/Qwen2.5-72B-Instruct"), "HF_TOKEN"),
-    "ollama": Provider("Local Ollama", os.getenv("OLLAMA_MODEL", "qwen2.5:7b"), None),
+    # Ollama serves local models and, once signed in, cloud tags like gpt-oss:120b-cloud
+    "ollama": Provider("Ollama (local or cloud)", os.getenv("OLLAMA_MODEL", "gpt-oss:120b-cloud"), None),
 }
 
 
@@ -73,7 +74,7 @@ def make_model(provider: str, model_id: str | None = None, api_key: str | None =
         if not _ollama_running():
             raise RuntimeError(f"Ollama is not reachable at {OLLAMA_URL}.")
         return OpenAIServerModel(model_id=model_id, api_base=f"{OLLAMA_URL}/v1", api_key="ollama"), \
-            f"{model_id} (local Ollama)"
+            f"{model_id} (Ollama)"
     if not key:
         raise RuntimeError(f"{spec.label} needs an API key (set {spec.key_env}).")
     if provider == "hf":
