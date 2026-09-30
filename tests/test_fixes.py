@@ -121,25 +121,30 @@ def test_fetch_kaggle_lists_csvs_on_filename_mismatch(mock_api, tmp_path):
     assert "alpha.csv" in out and "beta.csv" in out
 
 
-# -- bug 11: gradio 6 removed Chatbot(type=...); UI must build under the pin
-def test_build_ui_constructs():
-    gr = pytest.importorskip("gradio")
-    from app import build_ui
-
-    demo = build_ui()
-    assert isinstance(demo, gr.Blocks)
+# -- bug 11: the UI must actually build, not just the tools (was: gradio 6 removed
+#    Chatbot(type=...) and crashed on startup with a green suite). The Streamlit
+#    app is now booted in tests/test_v21.py::test_streamlit_app_boots_and_runs_scripted_agent.
 
 
-# -- bug 12: a malformed CSV upload must return a message, not raise --------
-def test_upload_csv_bad_file_returns_message(tmp_path):
-    pytest.importorskip("gradio")
-    from app import make_session, upload_csv
+# -- bug 12: a malformed upload must surface as a message, not crash the page ---
+def test_bad_upload_is_caught(tmp_path):
+    from streamlit.testing.v1 import AppTest
 
-    bad = tmp_path / "bad.csv"
-    bad.write_bytes(b"\xff\xfe\x00broken\x00")
+    script = """
+import streamlit as st
+from ui.chat_page import read_upload
 
-    class FakeFile:
-        name = str(bad)
+class FakeFile:
+    name = "bad.parquet"
+    def getvalue(self):
+        return b"\\xff\\xfe\\x00broken"
 
-    msg, _session = upload_csv(FakeFile(), make_session())
-    assert "Could not read" in msg
+try:
+    read_upload(FakeFile())
+except Exception as e:
+    st.error(f"Could not read bad.parquet: {e}")
+"""
+    at = AppTest.from_string(script, default_timeout=30)
+    at.run()
+    assert not at.exception
+    assert "Could not read" in at.error[0].value

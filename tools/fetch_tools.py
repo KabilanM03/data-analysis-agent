@@ -14,12 +14,14 @@ from ._state import set_active_df
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-# shorthand names for the HF datasets the agent reaches for most often
+# shorthand names for the HF datasets the agent reaches for most often. datasets>=4
+# dropped script-based datasets, so every id here must be plain data files
+# (checked by tests/test_live.py)
 KNOWN_DATASETS: dict[str, tuple[str, str]] = {
     "spotify":   ("maharshipandya/spotify-tracks-dataset", "train"),
-    "titanic":   ("mstz/titanic",                          "train"),
+    "titanic":   ("phihung/titanic",                       "train"),
     "netflix":   ("hugginglearners/netflix-shows",         "train"),
-    "sales":     ("Thewillonline/sales_data_sample",       "train"),
+    "sales":     ("An-j96/SuperstoreData",                 "train"),
     "data jobs": ("lukebarousse/data_jobs",                "train"),
     "airbnb":    ("gradio/NYC-Airbnb-Open-Data",           "train"),
 }
@@ -55,7 +57,7 @@ def load_hf_dataset(dataset_name: str, split: str = "train", max_rows: int = 500
     df = ds.to_pandas()
     set_active_df(df, name=dataset_name)
     nums = df.select_dtypes(include="number").columns.tolist()
-    cats = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    cats = df.select_dtypes(include=["object", "str", "category"]).columns.tolist()
     return (
         f"Loaded {dataset_name} ({hf_id}): {df.shape[0]:,} rows x {df.shape[1]} cols.\n"
         f"Numeric: {', '.join(nums) or 'none'}\n"
@@ -74,9 +76,9 @@ def list_available_datasets() -> str:
     """
     descs = {
         "spotify":   "114k Spotify tracks with audio features",
-        "titanic":   "Titanic passenger survival",
+        "titanic":   "Titanic passenger survival (891 passengers)",
         "netflix":   "Netflix catalogue of shows and movies",
-        "sales":     "B2B sales transactions",
+        "sales":     "Superstore retail orders: sales, profit, region, category",
         "data jobs": "Data science job postings with salary",
         "airbnb":    "NYC Airbnb listings",
     }
@@ -149,7 +151,7 @@ def fetch_kaggle_dataset(dataset_slug: str, file_name: str = "", max_rows: int =
 
     set_active_df(df, name=os.path.basename(target))
     nums = df.select_dtypes(include="number").columns.tolist()
-    cats = df.select_dtypes(include="object").columns.tolist()
+    cats = df.select_dtypes(include=["object", "str"]).columns.tolist()
     return (
         f"Loaded {dataset_slug} / {os.path.basename(target)}: {df.shape[0]:,} rows x {df.shape[1]} cols.\n"
         f"Numeric: {', '.join(nums) or 'none'}\n"

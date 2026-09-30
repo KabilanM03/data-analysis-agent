@@ -1,16 +1,22 @@
 """Chart rendering tool. Saves a PNG and returns a [CHART:...] sentinel that
-the Gradio chat handler picks up and turns into an inline image. The path is also
-registered with the session store so the UI can render it even if the model drops
-the marker from its final answer.
+the chat UI picks up and turns into an inline chart. The path is also registered
+with the session store so the UI can render it even if the model drops the marker
+from its final answer.
+
+Next to each PNG it writes a Plotly figure as JSON (same name, .json) so the
+Streamlit UI can show an interactive version. The PNG stays the canonical output:
+it is what the MCP server returns and what the tests check.
 """
 
 import os
 import uuid
 
 import matplotlib
-matplotlib.use("Agg")  # headless; Gradio renders the saved PNG
+matplotlib.use("Agg")  # headless; the UI renders the saved PNG
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.express as px
+import plotly.io as pio
 import seaborn as sns
 from smolagents import tool
 
@@ -25,6 +31,38 @@ sns.set_theme(style="whitegrid", palette="muted")
 
 VALID_CHARTS = {"bar", "line", "scatter", "histogram", "box", "heatmap"}
 MAX_BARS = 20  # cap categories on a count bar chart so it stays readable
+MAX_PLOTLY_POINTS = 5000  # sample big scatter/line data so the JSON stays small
+
+
+def interactive_path(png_path: str) -> str:
+    return os.path.splitext(png_path)[0] + ".json"
+
+
+def _plotly_figure(df, chart_type, x, y, hue, title):
+    """Plotly twin of the seaborn chart. Returns None when there is no sensible twin."""
+    color = hue or None
+    if chart_type in {"scatter", "line"} and len(df) > MAX_PLOTLY_POINTS:
+        df = df.sample(MAX_PLOTLY_POINTS, random_state=0)
+    if chart_type == "bar":
+        if y:
+            cols = [x] + ([hue] if hue else [])
+            data = df.groupby(cols)[y].mean(numeric_only=True).reset_index()
+            return px.bar(data, x=x, y=y, color=color, barmode="group", title=title, labels={y: f"mean {y}"})
+        counts = df[x].value_counts().head(MAX_BARS).reset_index()
+        counts.columns = [x, "count"]
+        return px.bar(counts, x=x, y="count", title=title)
+    if chart_type == "line":
+        return px.line(df.sort_values(x), x=x, y=y, color=color, title=title)
+    if chart_type == "scatter":
+        return px.scatter(df, x=x, y=y, color=color, opacity=0.7, title=title)
+    if chart_type == "histogram":
+        return px.histogram(df, x=x, color=color, title=title)
+    if chart_type == "box":
+        return px.box(df, x=x, y=y, color=color, title=title)
+    if chart_type == "heatmap":
+        corr = df.select_dtypes(include="number").corr().round(2)
+        return px.imshow(corr, text_auto=True, color_continuous_scale="RdBu_r", zmin=-1, zmax=1, title=title)
+    return None
 
 
 def _save(fig) -> str:
@@ -81,6 +119,7 @@ def create_visualization(
                 group_cols = [x_column] + ([hue_column] if hue_column else [])
                 data = df.groupby(group_cols)[y_column].mean(numeric_only=True).reset_index()
                 sns.barplot(data=data, x=x_column, y=y_column, hue=hue_column or None, ax=ax)
+                ax.set_ylabel(f"mean {y_column}")
             else:
                 counts = df[x_column].value_counts()
                 total = len(counts)
@@ -128,5 +167,11 @@ def create_visualization(
     ax.set_title(final_title, fontsize=13, fontweight="bold", pad=10)
     fig.tight_layout()
     path = _save(fig)
+    try:
+        pfig = _plotly_figure(df, chart_type, x_column, y_column, hue_column, final_title)
+        if pfig is not None:
+            pio.write_json(pfig, interactive_path(path))
+    except Exception:
+        pass  # the PNG is enough; the interactive twin is a nice-to-have
     register_chart(path)
     return f"[CHART:{path}]\nSaved chart to {os.path.basename(path)}."

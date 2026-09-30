@@ -1,7 +1,9 @@
 from ._state import (
     DataframeStore,
     bind_store,
+    bind_tools,
     get_active_df,
+    get_full_df,
     set_active_df,
     set_view,
     reset_view,
@@ -25,7 +27,16 @@ from .fetch_tools import (
     fetch_kaggle_dataset,
     search_kaggle_datasets,
 )
-from .viz_tools import create_visualization, PLOTS_DIR
+from .sql_tools import run_sql
+from .cloud_tools import (
+    load_cloud_file,
+    query_motherduck,
+    query_snowflake,
+    query_bigquery,
+    list_data_sources,
+    configured_sources,
+)
+from .viz_tools import create_visualization, interactive_path, PLOTS_DIR
 from .report_tools import generate_report
 
 ALL_TOOLS = [
@@ -34,9 +45,15 @@ ALL_TOOLS = [
     fetch_kaggle_dataset,
     search_kaggle_datasets,
     load_dataset,
+    load_cloud_file,
+    query_motherduck,
+    query_snowflake,
+    query_bigquery,
+    list_data_sources,
     describe_dataset,
     filter_data,
     reset_filters,
+    run_sql,
     aggregate_data,
     correlation_analysis,
     create_visualization,

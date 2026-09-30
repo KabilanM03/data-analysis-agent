@@ -24,6 +24,7 @@ kaggle.json
 
 # Generated artefacts
 plots/*.png
+plots/*.json
 *.log
 
 # Big binaries that don't belong in source control
@@ -35,3 +36,10 @@ plots/*.png
 
 # Local drafts, not part of the project
 linkedin_post.md
+
+# research notes (local only)
+research_notes/
+reports/
+# local config with secrets
+mcp_servers.json
+.streamlit/secrets.toml
