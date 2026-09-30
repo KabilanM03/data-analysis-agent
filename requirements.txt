@@ -1,11 +1,18 @@
-smolagents==1.24.0
-gradio==6.11.0
-pandas==2.2.3
-matplotlib==3.9.2
+# Runtime + test deps. Streamlit Community Cloud installs this file.
+smolagents[litellm,mcp]==1.26.0
+# mcpadapt (smolagents' MCP bridge) does not import under mcp 2.x yet; the [ws]
+# extra is needed for its websocket import
+mcp[ws]>=1.28,<2
+litellm==1.103.1
+streamlit[auth]==1.64.0
+plotly==7.1.0
+duckdb==1.5.6
+pandas==3.0.6
+pyarrow==25.0.1
+matplotlib==3.11.2
 seaborn==0.13.2
-datasets==3.2.0
-kaggle==1.6.17
-litellm==1.55.4
-python-dotenv==1.0.1
-pyyaml==6.0.2
-pytest==8.3.4
+datasets==5.0.1
+kaggle==2.2.4
+python-dotenv==1.2.3
+pyyaml==6.0.3
+pytest==9.1.1

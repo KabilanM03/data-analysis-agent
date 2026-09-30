@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "motherduck": {
+      "command": "uvx",
+      "args": ["mcp-server-motherduck", "--db-path", "md:", "--read-only"],
+      "env": {"motherduck_token": "${MOTHERDUCK_TOKEN}"}
+    },
+    "bigquery": {
+      "url": "https://bigquery.googleapis.com/mcp",
+      "headers": {"Authorization": "Bearer ${GCP_ACCESS_TOKEN}"}
+    },
+    "aws": {
+      "command": "uvx",
+      "args": ["mcp-proxy-for-aws@latest", "https://aws-mcp.eu-central-1.api.aws/mcp", "--read-only",
+               "--metadata", "AWS_REGION=eu-west-2"],
+      "env": {"AWS_PROFILE": "${AWS_PROFILE}"}
+    },
+    "aws-athena": {
+      "command": "uvx",
+      "args": ["awslabs.aws-dataprocessing-mcp-server@latest"],
+      "env": {"AWS_PROFILE": "${AWS_PROFILE}", "AWS_REGION": "${AWS_REGION}"}
+    },
+    "aws-redshift": {
+      "command": "uvx",
+      "args": ["awslabs.redshift-mcp-server@latest"],
+      "env": {"AWS_PROFILE": "${AWS_PROFILE}", "AWS_REGION": "${AWS_REGION}"}
+    },
+    "snowflake": {
+      "url": "https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com/api/v2/databases/${SNOWFLAKE_DATABASE}/schemas/${SNOWFLAKE_SCHEMA}/mcp-servers/${SNOWFLAKE_MCP_SERVER}",
+      "headers": {"Authorization": "Bearer ${SNOWFLAKE_PAT}"}
+    },
+    "hf": {
+      "url": "https://huggingface.co/mcp",
+      "headers": {"Authorization": "Bearer ${HF_TOKEN}"}
+    }
+  }
+}

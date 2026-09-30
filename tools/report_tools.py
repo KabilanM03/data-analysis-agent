@@ -20,7 +20,7 @@ def generate_report(key_findings: str, recommendations: str = "") -> str:
     """
     df = get_active_df()
     nums = df.select_dtypes(include="number").columns.tolist()
-    cats = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    cats = df.select_dtypes(include=["object", "str", "category"]).columns.tolist()
     nulls = df.isnull().sum()
     nulls = nulls[nulls > 0]
     quality = "no missing values" if nulls.empty else "\n".join(f"- {c}: {n}" for c, n in nulls.items())

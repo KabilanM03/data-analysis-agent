@@ -1,8 +1,9 @@
 """Per-session dataframe store, accessed by tools via a ContextVar.
 
 Tools call `get_active_df()` / `set_active_df()` without knowing about sessions.
-The Gradio handler binds a session-specific `DataframeStore` to the ContextVar
-before calling `agent.run()`, so each user gets their own slice of state.
+The app gives each session's agent tool copies made by `bind_tools(store)`, which
+bind that session's `DataframeStore` inside every call, so each user gets their
+own slice of state. `bind_store` does the same for direct calls on one thread.
 
 Falling back to a module-default store keeps the unit tests and CLI usage simple.
 
@@ -13,6 +14,8 @@ produced so the UI can render them even if the model drops the [CHART:] marker.
 """
 
 import contextvars
+import copy
+
 import pandas as pd
 
 
@@ -51,6 +54,10 @@ class DataframeStore:
     def name(self) -> str:
         return self._name
 
+    def full(self) -> pd.DataFrame | None:
+        """The originally-loaded frame, ignoring any filter. None if nothing is loaded."""
+        return self._df
+
     # -- chart registry -----------------------------------------------------
     def register_chart(self, path: str) -> None:
         self._charts.append(path)
@@ -74,8 +81,38 @@ def bind_store(store: DataframeStore):
     return _active_store_ctx.set(store)
 
 
+def bind_tools(store: DataframeStore, tools: list) -> list:
+    """Copies of `tools` that bind `store` inside every call.
+
+    Binding around `agent.run()` is not enough: smolagents' local executor runs
+    the generated code on a worker thread (for its execution timeout), and a new
+    thread does not inherit ContextVars, so the tools would fall back to the
+    shared default store. Setting the var inside the tool call works whichever
+    thread ends up running it.
+    """
+    bound = []
+    for tool in tools:
+        clone = copy.copy(tool)
+        original = tool.forward
+
+        def forward(*args, _original=original, **kwargs):
+            token = _active_store_ctx.set(store)
+            try:
+                return _original(*args, **kwargs)
+            finally:
+                _active_store_ctx.reset(token)
+
+        clone.forward = forward
+        bound.append(clone)
+    return bound
+
+
 def get_active_df() -> pd.DataFrame:
     return _active_store_ctx.get().get()
+
+
+def get_full_df() -> pd.DataFrame | None:
+    return _active_store_ctx.get().full()
 
 
 def set_active_df(df: pd.DataFrame, name: str = "dataset") -> None:
