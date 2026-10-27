@@ -6,11 +6,13 @@
 
 A conversational agent that answers questions about real data in plain English. It loads data from Hugging Face, Kaggle, your own files, cloud storage (S3, GCS, Azure, R2) or a warehouse (MotherDuck, Snowflake, BigQuery), analyses it with pandas and DuckDB SQL, and answers with numbers and interactive charts. Built on `smolagents`, started while working through the [Hugging Face AI Agents Course](https://huggingface.co/learn/agents-course/) (Units 1-3).
 
-![Chat answer with an interactive chart](assets/ui_v21_chat.png)
+A real run with `gpt-oss:120b-cloud` (Ollama Cloud): the agent loaded 50,000 Spotify tracks, ranked genres with SQL, then charted them on a follow-up question. The numbers match a direct pandas check.
 
-![Step-by-step agent trace](assets/ui_v21_trace.png)
+![Real run: top genres answer](assets/real_answer.png)
 
-*Screenshots are from an offline run with a scripted stand-in model (the one the tests use), so the trace is short and the token counts are fixed.*
+![Real run: follow-up chart](assets/real_chart.png)
+
+![Real run: the code the model wrote](assets/real_trace.png)
 
 See [NOTES.md](NOTES.md) for the build journal and [CHANGELOG.md](CHANGELOG.md) for what changed in 2.1.
 
